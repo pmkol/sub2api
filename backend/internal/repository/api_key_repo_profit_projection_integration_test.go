@@ -48,9 +48,14 @@ func TestGetByKeyForAuthCarriesProfitControlProjection(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	require.NoError(t, integrationEntClient.Group.UpdateOneID(group.ID).SetRequirePrivacySet(true).Exec(ctx))
+
 	got, err := apiKeyRepo.GetByKeyForAuth(ctx, keyValue)
 	require.NoError(t, err)
 	require.NotNil(t, got.Group, "认证查询必须带出分组")
+
+	require.True(t, got.Group.RequirePrivacySet)
+	require.True(t, got.Group.RequirePrivacySetLoaded)
 
 	require.Equal(t, service.PlatformOpenAI, got.Group.Platform)
 	require.InDelta(t, 0.06, got.Group.RateMultiplier, 1e-9)

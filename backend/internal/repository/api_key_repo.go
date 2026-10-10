@@ -230,6 +230,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldProfitControlEnabled,
 				group.FieldProfitMinMargin,
 				group.FieldProfitSafetyBuffer,
+				group.FieldRequirePrivacySet,
 			)
 		}).
 		Only(ctx)
@@ -239,7 +240,11 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	apiKey := apiKeyEntityToService(m)
+	if apiKey.Group != nil {
+		apiKey.Group.RequirePrivacySetLoaded = true
+	}
+	return apiKey, nil
 }
 
 func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fields service.APIKeyUpdateFields) error {

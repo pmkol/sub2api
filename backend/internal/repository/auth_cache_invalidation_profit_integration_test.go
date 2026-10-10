@@ -79,6 +79,18 @@ func TestAuthCacheInvalidationTrigger_ProfitControlColumns(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, count(), "利润字段无实际变化的 UPDATE 不得入队")
 
+	// Privacy changes must be durable even when application invalidation is skipped.
+	for _, required := range []bool{true, false} {
+		clear()
+		_, err = integrationDB.ExecContext(ctx, "UPDATE groups SET require_privacy_set = $1 WHERE id = $2", required, group.ID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count(), "privacy requirement changes must enqueue invalidation")
+		clear()
+		_, err = integrationDB.ExecContext(ctx, "UPDATE groups SET require_privacy_set = $1 WHERE id = $2", required, group.ID)
+		require.NoError(t, err)
+		require.Zero(t, count(), "unchanged privacy requirement must not enqueue invalidation")
+	}
+
 	for name, update := range map[string]string{
 		"platform":             "platform = 'anthropic'",
 		"subscription_type":    "subscription_type = 'subscription'",

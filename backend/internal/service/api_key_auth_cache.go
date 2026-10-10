@@ -114,6 +114,9 @@ type APIKeyAuthGroupSnapshot struct {
 	// Codex /models handler 直接读认证分组对象。
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig `json:"codex_models_manifest_config,omitempty"`
 
+	RequirePrivacySet       bool `json:"require_privacy_set,omitempty"`
+	RequirePrivacySetLoaded bool `json:"require_privacy_set_loaded,omitempty"`
+
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）；用于 billing_cache_service.checkRPM 级联判断。
 	RPMLimit int `json:"rpm_limit"`
 

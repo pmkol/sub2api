@@ -25,6 +25,7 @@ type mockAccountRepoForPlatform struct {
 	accountsByID     map[int64]*Account
 	listPlatformFunc func(ctx context.Context, platform string) ([]Account, error)
 	getByIDCalls     int
+	setErrorCalls    int
 }
 
 func (m *mockAccountRepoForPlatform) GetByID(ctx context.Context, id int64) (*Account, error) {
@@ -114,6 +115,7 @@ func (m *mockAccountRepoForPlatform) BatchUpdateLastUsed(ctx context.Context, up
 	return nil
 }
 func (m *mockAccountRepoForPlatform) SetError(ctx context.Context, id int64, errorMsg string) error {
+	m.setErrorCalls++
 	return nil
 }
 func (m *mockAccountRepoForPlatform) ClearError(ctx context.Context, id int64) error {

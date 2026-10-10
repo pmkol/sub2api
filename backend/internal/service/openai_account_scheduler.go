@@ -1432,11 +1432,8 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		accounts = modelFiltered
 	}
 
-	// require_privacy_set: 获取分组配置。GetByID 会聚合账号计数，选号不能走它。
-	var schedGroup *Group
-	if req.GroupID != nil && s.service.schedulerSnapshot != nil {
-		schedGroup, _ = s.service.schedulerSnapshot.GetGroupByIDLite(ctx, *req.GroupID)
-	}
+	// 复用请求内的分组隐私要求；旧鉴权快照缺字段时回退轻量查询。
+	requirePrivacySet := s.service.openAIGroupRequiresPrivacySet(ctx, req.GroupID)
 
 	filterStats := openAISelectionFilterStats{pool: len(accounts)}
 	filtered := make([]*Account, 0, len(accounts))
@@ -1464,7 +1461,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		// require_privacy_set is a group-scoped eligibility gate. Do not mutate the
 		// shared account: another group may intentionally allow accounts whose
 		// upstream privacy setting has not been confirmed.
-		if schedGroup != nil && schedGroup.RequirePrivacySet && !account.IsPrivacySet() {
+		if requirePrivacySet && !account.IsPrivacySet() {
 			filterStats.exclude("privacy_not_set")
 			continue
 		}
@@ -2204,7 +2201,7 @@ type openAIGroupPrivacyRequirement struct {
 func (s *OpenAIGatewayService) withOpenAIGroupPrivacyRequirement(ctx context.Context, groupID *int64) context.Context {
 	return context.WithValue(ctx, openAIGroupPrivacyRequirementContextKey{}, openAIGroupPrivacyRequirement{
 		groupID:  derefGroupID(groupID),
-		required: s.loadOpenAIGroupRequiresPrivacySet(ctx, groupID),
+		required: s.openAIGroupRequiresPrivacySet(ctx, groupID),
 	})
 }
 
@@ -2216,7 +2213,14 @@ func (s *OpenAIGatewayService) openAIGroupRequiresPrivacySet(ctx context.Context
 }
 
 func (s *OpenAIGatewayService) loadOpenAIGroupRequiresPrivacySet(ctx context.Context, groupID *int64) bool {
-	if s == nil || groupID == nil || s.schedulerSnapshot == nil {
+	if s == nil || groupID == nil {
+		return false
+	}
+	// 仅复用当前分组已加载的隐私要求；旧快照和回退分组仍查询数据库。
+	if group := authGroupWithPrivacyFromContext(ctx, groupID); group != nil {
+		return group.RequirePrivacySet
+	}
+	if s.schedulerSnapshot == nil {
 		return false
 	}
 	// GetByID 会聚合账号计数；隐私开关只在分组行上。

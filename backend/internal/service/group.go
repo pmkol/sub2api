@@ -111,6 +111,9 @@ type Group struct {
 	// 固定账号列表拉取并合并，不经过调度器（仅 openai 平台）。
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig
 
+	// RequirePrivacySetLoaded 区分鉴权快照中已加载的 false 与旧快照缺失字段。
+	RequirePrivacySetLoaded bool `json:"-"`
+
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）。
 	// 一旦设置即接管该分组用户的限流（覆盖用户级 rpm_limit），可被 user-group rpm_override 进一步覆盖。
 	RPMLimit int

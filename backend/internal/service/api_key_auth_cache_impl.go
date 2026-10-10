@@ -436,6 +436,9 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			ProfitControlEnabled:            apiKey.Group.ProfitControlEnabled,
 			ProfitMinMargin:                 apiKey.Group.ProfitMinMargin,
 			ProfitSafetyBuffer:              apiKey.Group.ProfitSafetyBuffer,
+
+			RequirePrivacySet:       apiKey.Group.RequirePrivacySet,
+			RequirePrivacySetLoaded: apiKey.Group.RequirePrivacySetLoaded,
 		}
 	}
 	return snapshot
@@ -540,6 +543,9 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			ProfitControlEnabled:            snapshot.Group.ProfitControlEnabled,
 			ProfitMinMargin:                 snapshot.Group.ProfitMinMargin,
 			ProfitSafetyBuffer:              snapshot.Group.ProfitSafetyBuffer,
+
+			RequirePrivacySet:       snapshot.Group.RequirePrivacySet,
+			RequirePrivacySetLoaded: snapshot.Group.RequirePrivacySetLoaded,
 		}
 	}
 	s.compileAPIKeyIPRules(apiKey)
