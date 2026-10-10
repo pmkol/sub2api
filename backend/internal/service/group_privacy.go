@@ -30,3 +30,6 @@ func (s *GatewayService) groupForPrivacySelection(ctx context.Context, groupID *
 	group, _ := s.groupRepo.GetByIDLite(ctx, *groupID)
 	return group
 }
+
+// gatewayPrivacyRequiredContextKey carries the requirement through account hydration.
+type gatewayPrivacyRequiredContextKey struct{}

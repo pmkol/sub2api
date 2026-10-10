@@ -227,6 +227,22 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	if len(accounts) == 0 {
 		return nil, ErrNoAvailableAccounts
 	}
+	// 在构建账号索引之前统一过滤，覆盖模型路由、粘性命中和等待计划。
+	privacyGroup := s.groupForPrivacySelection(ctx, groupID)
+	requirePrivacy := privacyGroup != nil && privacyGroup.RequirePrivacySet
+	ctx = context.WithValue(ctx, gatewayPrivacyRequiredContextKey{}, requirePrivacy)
+	if requirePrivacy {
+		filtered := make([]Account, 0, len(accounts))
+		for _, account := range accounts {
+			if account.IsPrivacySet() {
+				filtered = append(filtered, account)
+			}
+		}
+		accounts = filtered
+		if len(accounts) == 0 {
+			return nil, ErrNoAvailableAccounts
+		}
+	}
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
 
@@ -1576,6 +1592,13 @@ func (s *GatewayService) newSelectionResult(ctx context.Context, account *Accoun
 	hydrated, err := s.hydrateSelectedAccount(ctx, account)
 	if err != nil {
 		return nil, err
+	}
+	// 凭证补全可能返回另一份账号对象，仍须满足本次分组的隐私要求。
+	if required, _ := ctx.Value(gatewayPrivacyRequiredContextKey{}).(bool); required && (hydrated == nil || !hydrated.IsPrivacySet()) {
+		if release != nil {
+			release()
+		}
+		return nil, ErrNoAvailableAccounts
 	}
 	return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 		Account:     hydrated,

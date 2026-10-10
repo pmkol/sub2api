@@ -995,6 +995,8 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		"quota_weekly_reset_day",
 		"quota_weekly_reset_hour",
 		"quota_reset_timezone",
+		// 候选隐私过滤读取精简副本；缺失会把已设置隐私的账号误判为不可用。
+		"privacy_mode",
 		"mixed_scheduling",
 		"window_cost_limit",
 		"window_cost_sticky_reserve",

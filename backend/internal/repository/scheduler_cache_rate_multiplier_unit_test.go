@@ -4,6 +4,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -78,4 +79,52 @@ func TestSchedulerCachePreservesRateMultiplier(t *testing.T) {
 		require.NotNil(t, got.RateMultiplier, "端到端缓存读写后 rate_multiplier 不得丢失")
 		require.Equal(t, rate, *got.RateMultiplier)
 	})
+}
+
+// Privacy filtering runs before hydration, so metadata must retain the status.
+func TestSchedulerCachePreservesPrivacyMode(t *testing.T) {
+	for _, tc := range []struct{ platform, mode string }{
+		{service.PlatformOpenAI, service.PrivacyModeTrainingOff},
+		{service.PlatformAntigravity, service.AntigravityPrivacySet},
+	} {
+		for _, configured := range []bool{true, false} {
+			name := tc.platform + "/configured"
+			if !configured {
+				name = tc.platform + "/unconfigured"
+			}
+			t.Run(name, func(t *testing.T) {
+				account := service.Account{ID: 9101, Platform: tc.platform, Status: service.StatusActive, Schedulable: true, Extra: map[string]any{"unrelated": "drop me"}}
+				if configured {
+					account.Extra["privacy_mode"] = tc.mode
+				}
+				metadata := buildSchedulerMetadataAccount(account)
+				payload, err := json.Marshal(metadata)
+				require.NoError(t, err)
+				var restored service.Account
+				require.NoError(t, json.Unmarshal(payload, &restored))
+				require.Equal(t, configured, restored.IsPrivacySet())
+				require.NotContains(t, restored.Extra, "unrelated")
+
+				full, meta, err := marshalSchedulerCacheAccount(account)
+				require.NoError(t, err)
+				for _, data := range [][]byte{full, meta} {
+					decoded, err := decodeCachedAccount(data)
+					require.NoError(t, err)
+					require.Equal(t, configured, decoded.IsPrivacySet())
+				}
+
+				cache := newSchedulerCacheUnit(t)
+				ctx := context.Background()
+				bucket := service.SchedulerBucket{GroupID: 10, Platform: tc.platform, Mode: service.SchedulerModeSingle}
+				token, err := cache.CaptureBucketWriteToken(ctx, bucket)
+				require.NoError(t, err)
+				require.NoError(t, cache.SetSnapshot(ctx, bucket, token, []service.Account{account}))
+				snapshot, hit, err := cache.GetSnapshot(ctx, bucket)
+				require.NoError(t, err)
+				require.True(t, hit)
+				require.Len(t, snapshot, 1)
+				require.Equal(t, configured, snapshot[0].IsPrivacySet())
+			})
+		}
+	}
 }
